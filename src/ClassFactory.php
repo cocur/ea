@@ -17,7 +17,7 @@ class ClassFactory
     /** @var string */
     private $namespace;
 
-    /** @var array[] */
+    /** @var PropertyFactory[] */
     protected $properties = [];
 
     /** @var MethodFactory[] */
@@ -50,20 +50,21 @@ class ClassFactory
     }
 
     /**
-     * @param string      $name
-     * @param string|null $visibility
-     * @param bool|null   $static
-     * @param mixed|null  $default
+     * @param PropertyFactory|string $property
+     * @param string|null            $visibility
+     * @param bool|null              $static
+     * @param mixed|null             $default
      *
-     * @return $this
+     * @return ClassFactory
      */
-    public function addProperty($name, $visibility = 'public', $static = null, $default = null)
+    public function addProperty($property, $visibility = 'public', $static = null, $default = null)
     {
-        $static = $static ? true : false;
-        $visibility = in_array($visibility, ['public', 'protected', 'private']) ? $visibility : 'public';
-        $property = ['name' => $name, 'visibility' => $visibility, 'static' => $static];
-        if (func_num_args() === 4) {
-            $property['default'] = $default;
+        if (!$property instanceof PropertyFactory) {
+            $property = new PropertyFactory($property, $visibility);
+            $property->isStatic($static);
+            if (func_num_args() === 4) {
+                $property->setDefault($default);
+            }
         }
         $this->properties[] = $property;
 
@@ -71,7 +72,7 @@ class ClassFactory
     }
 
     /**
-     * @return array[]
+     * @return PropertyFactory[]
      */
     public function getProperties()
     {
@@ -96,6 +97,90 @@ class ClassFactory
     public function getMethods()
     {
         return $this->methods;
+    }
+
+    /**
+     * @param PropertyFactory $property
+     *
+     * @return ClassFactory
+     */
+    public function addGetter(PropertyFactory $property)
+    {
+        $getter = new MethodFactory('get'.ucfirst($property->getName()));
+        $getter->setBody('return $this->'.$property->getName().';');
+
+        $this->addMethod($getter);
+
+        return $this;
+    }
+
+    /**
+     * @param PropertyFactory $property
+     *
+     * @return ClassFactory
+     */
+    public function addIsser(PropertyFactory $property)
+    {
+        $isser = new MethodFactory('is'.ucfirst($property->getName()));
+        $isser->setBody('return $this->'.$property->getName().';');
+
+        $this->addMethod($isser);
+
+        return $this;
+    }
+
+    /**
+     * @param PropertyFactory $property
+     *
+     * @return ClassFactory
+     */
+    public function addSetter(PropertyFactory $property)
+    {
+        $setter = new MethodFactory('set'.ucfirst($property->getName()));
+        $setter->addArgument($property->getName());
+        $setter->setBody('$this->'.$property->getName().' = $'.$property->getName().';');
+
+        $this->addMethod($setter);
+
+        return $this;
+    }
+
+    /**
+     * @param PropertyFactory $property
+     * @param bool            $keyValue
+     * @param string|null     $singular Singular version of the property name
+     *
+     * @return ClassFactory
+     */
+    public function addAdder(PropertyFactory $property, $keyValue = false, $singular = null)
+    {
+        $singular = $singular === null ? $property->getName() : $singular;
+        $adder = new MethodFactory('add'.ucfirst($singular));
+        if ($keyValue) {
+            $adder->addArgument('key');
+        }
+        $adder->addArgument($singular);
+        $adder->setBody('$this->'.$property->getName().'['.($keyValue?'$key':'').'] = $'.$singular.';');
+
+        $this->addMethod($adder);
+
+        return $this;
+    }
+
+    /**
+     * @param PropertyFactory $property
+     *
+     * @return ClassFactory
+     */
+    public function addHasser(PropertyFactory $property)
+    {
+        $hasser = new MethodFactory('has'.ucfirst($property->getName()));
+        $hasser->addArgument('key');
+        $hasser->setBody('return isset($this->'.$property->getName().'[$key]);');
+
+        $this->addMethod($hasser);
+
+        return $this;
     }
 
     /**
@@ -132,35 +217,10 @@ class ClassFactory
     {
         $code = '';
         foreach ($this->getProperties() as $property) {
-            $code .= $this->generateProperty($property);
+            $code .= "\n    ".$property->generate();
         }
 
         return $code;
-    }
-
-    /**
-     * @param array $property
-     *
-     * @return string
-     */
-    protected function generateProperty(array $property)
-    {
-        $code = "\n    ".$property['visibility'];
-        if ($property['static']) {
-            $code .= ' static';
-        }
-        $code .= ' $'.$property['name'];
-        if (array_key_exists('default', $property)) {
-            $default = $property['default'];
-            if ($default === null) {
-                $default = 'null';
-            } else if ($default !== '[]' && $default != 'array()' && is_string($default)) {
-                $default = '\''.$default.'\'';
-            }
-            $code .= ' = '.$default;
-        }
-
-        return $code.';';
     }
 
     /**

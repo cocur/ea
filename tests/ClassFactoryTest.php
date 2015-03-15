@@ -42,13 +42,21 @@ class ClassFactoryTest extends PHPUnit_Framework_TestCase
         $c->addProperty('boo', null, null, 42);
 
         $this->assertCount(4, $c->getProperties());
-        $this->assertContains(['name' => 'foo', 'visibility' => 'public', 'static' => false], $c->getProperties());
-        $this->assertContains(['name' => 'bar', 'visibility' => 'protected', 'static' => false], $c->getProperties());
-        $this->assertContains(['name' => 'baz', 'visibility' => 'public', 'static' => true], $c->getProperties());
-        $this->assertContains(
-            ['name' => 'boo', 'visibility' => 'public', 'static' => false, 'default' => 42],
-            $c->getProperties()
-        );
+
+        $this->assertSame('foo', $c->getProperties()[0]->getName());
+        $this->assertSame('public', $c->getProperties()[0]->getVisibility());
+        $this->assertFalse($c->getProperties()[0]->isStatic());
+        $this->assertFalse($c->getProperties()[0]->hasDefault());
+
+        $this->assertSame('bar', $c->getProperties()[1]->getName());
+        $this->assertSame('protected', $c->getProperties()[1]->getVisibility());
+
+        $this->assertSame('baz', $c->getProperties()[2]->getName());
+        $this->assertTrue($c->getProperties()[2]->isStatic());
+
+        $this->assertSame('boo', $c->getProperties()[3]->getName());
+        $this->assertTrue($c->getProperties()[3]->hasDefault());
+        $this->assertSame(42, $c->getProperties()[3]->getDefault());
     }
 
     /**
@@ -98,30 +106,17 @@ class ClassFactoryTest extends PHPUnit_Framework_TestCase
      * @test
      * @covers Cocur\Ea\ClassFactory::generate()
      * @covers Cocur\Ea\ClassFactory::generateProperties()
-     * @covers Cocur\Ea\ClassFactory::generateProperty()
      */
     public function generateReturnsSourceCodeOfClassWithProperties()
     {
         $expected = <<<EOF
 class Foobar {
     public \$foo;
-    protected \$bar;
-    public static \$baz;
-    public \$boo = 42;
-    public \$bom = [];
-    public \$bot = null;
-    public \$box = 'foo';
 }
 EOF;
 
         $c = new ClassFactory('Foobar');
-        $c->addProperty('foo');
-        $c->addProperty('bar', 'protected');
-        $c->addProperty('baz', null, true);
-        $c->addProperty('boo', null, null, 42);
-        $c->addProperty('bom', null, null, '[]');
-        $c->addProperty('bot', null, null, null);
-        $c->addProperty('box', null, null, 'foo');
+        $c->addProperty(new PropertyFactory('foo'));
 
         $this->assertSame($expected, $c->generate());
     }
@@ -144,6 +139,160 @@ EOF;
 
         $c = new ClassFactory('Foobar');
         $c->addMethod($m);
+
+        $this->assertSame($expected, $c->generate());
+    }
+
+    /**
+     * @test
+     * @covers Cocur\Ea\ClassFactory::addGetter()
+     * @covers Cocur\Ea\ClassFactory::generate()
+     */
+    public function addGetterAddsGetter()
+    {
+        $expected = <<<EOF
+class Foobar {
+    private \$foo;
+    function getFoo() { return \$this->foo; }
+}
+EOF;
+
+        $p = new PropertyFactory('foo', 'private');
+        $c = new ClassFactory('Foobar');
+        $c->addProperty($p);
+        $c->addGetter($p);
+
+        $this->assertSame($expected, $c->generate());
+    }
+
+    /**
+     * @test
+     * @covers Cocur\Ea\ClassFactory::addIsser()
+     * @covers Cocur\Ea\ClassFactory::generate()
+     */
+    public function addIsserAddsIsser()
+    {
+        $expected = <<<EOF
+class Foobar {
+    private \$foo;
+    function isFoo() { return \$this->foo; }
+}
+EOF;
+
+        $p = new PropertyFactory('foo', 'private');
+        $c = new ClassFactory('Foobar');
+        $c->addProperty($p);
+        $c->addIsser($p);
+
+        $this->assertSame($expected, $c->generate());
+    }
+
+    /**
+     * @test
+     * @covers Cocur\Ea\ClassFactory::addSetter()
+     * @covers Cocur\Ea\ClassFactory::generate()
+     */
+    public function addSetterAddsSetter()
+    {
+        $expected = <<<EOF
+class Foobar {
+    private \$foo;
+    function setFoo(\$foo) { \$this->foo = \$foo; }
+}
+EOF;
+
+        $p = new PropertyFactory('foo', 'private');
+        $c = new ClassFactory('Foobar');
+        $c->addProperty($p);
+        $c->addSetter($p);
+
+        $this->assertSame($expected, $c->generate());
+    }
+
+    /**
+     * @test
+     * @covers Cocur\Ea\ClassFactory::addAdder()
+     * @covers Cocur\Ea\ClassFactory::generate()
+     */
+    public function addAdderAddsAdder()
+    {
+        $expected = <<<EOF
+class Foobar {
+    private \$foo;
+    function addFoo(\$foo) { \$this->foo[] = \$foo; }
+}
+EOF;
+
+        $p = new PropertyFactory('foo', 'private');
+        $c = new ClassFactory('Foobar');
+        $c->addProperty($p);
+        $c->addAdder($p);
+
+        $this->assertSame($expected, $c->generate());
+    }
+
+    /**
+     * @test
+     * @covers Cocur\Ea\ClassFactory::addAdder()
+     * @covers Cocur\Ea\ClassFactory::generate()
+     */
+    public function addAdderAddsAdderWithKeyValue()
+    {
+        $expected = <<<EOF
+class Foobar {
+    private \$foo;
+    function addFoo(\$key, \$foo) { \$this->foo[\$key] = \$foo; }
+}
+EOF;
+
+        $p = new PropertyFactory('foo', 'private');
+        $c = new ClassFactory('Foobar');
+        $c->addProperty($p);
+        $c->addAdder($p, true);
+
+        $this->assertSame($expected, $c->generate());
+    }
+
+    /**
+     * @test
+     * @covers Cocur\Ea\ClassFactory::addAdder()
+     * @covers Cocur\Ea\ClassFactory::generate()
+     */
+    public function addAdderAddsAdderWithSingular()
+    {
+        $expected = <<<EOF
+class Foobar {
+    private \$foos;
+    function addFoo(\$foo) { \$this->foos[] = \$foo; }
+}
+EOF;
+
+        $p = new PropertyFactory('foos', 'private');
+        $c = new ClassFactory('Foobar');
+        $c->addProperty($p);
+        $c->addAdder($p, false, 'foo');
+
+        $this->assertSame($expected, $c->generate());
+    }
+
+    /**
+     * @test
+     * @covers Cocur\Ea\ClassFactory::addHasser()
+     * @covers Cocur\Ea\ClassFactory::generate()
+     */
+    public function addHasserAddsHasser()
+    {
+        $expected = <<<EOF
+class Foobar {
+    private \$foo;
+    function hasFoo(\$key) { return isset(\$this->foo[\$key]); }
+}
+EOF;
+
+        $p = new PropertyFactory('foo', 'private');
+        $c = new ClassFactory('Foobar');
+        $c->addProperty($p);
+        $c->addHasser($p);
 
         $this->assertSame($expected, $c->generate());
     }
