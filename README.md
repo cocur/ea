@@ -3,6 +3,8 @@ Ea
 
 > Code generation for testing. Because mocks sometimes just don't cut it.
 
+[![Build Status](https://travis-ci.org/cocur/ea.svg?branch=master)](https://travis-ci.org/cocur/ea)
+
 Developed by [Florian Eckerstorfer](https://florian.ec) in Vienna, Europe.
 
 
