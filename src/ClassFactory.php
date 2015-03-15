@@ -24,8 +24,19 @@ class ClassFactory
     protected $methods = [];
 
     /**
-     * @param string $name
-     * @param string $namespace
+     * @param string      $name
+     * @param string|null $namespace
+     *
+     * @return ClassFactory
+     */
+    public static function create($name, $namespace = null)
+    {
+        return new ClassFactory($name, $namespace);
+    }
+
+    /**
+     * @param string      $name
+     * @param string|null $namespace
      */
     public function __construct($name, $namespace = null)
     {

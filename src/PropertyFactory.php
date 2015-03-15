@@ -29,6 +29,17 @@ class PropertyFactory
     /**
      * @param string $name
      * @param string $visibility
+     *
+     * @return PropertyFactory
+     */
+    public static function create($name, $visibility = 'public')
+    {
+        return new self($name, $visibility);
+    }
+
+    /**
+     * @param string $name
+     * @param string $visibility
      */
     public function __construct($name, $visibility = 'public')
     {

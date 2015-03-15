@@ -29,6 +29,17 @@ class MethodFactory
     /**
      * @param string      $name
      * @param string|null $visibility
+     *
+     * @return MethodFactory
+     */
+    public static function create($name, $visibility = null)
+    {
+        return new self($name, $visibility);
+    }
+
+    /**
+     * @param string      $name
+     * @param string|null $visibility
      */
     public function __construct($name, $visibility = null)
     {
